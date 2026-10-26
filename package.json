@@ -1,0 +1,13 @@
+{
+  "name": "translate-projects-ios",
+  "version": "0.0.1",
+  "description": "Translate the String Catalog (Localizable.xcstrings) of an iOS/macOS app with Translate Projects",
+  "type": "module",
+  "bin": { "translate-projects-ios": "bin/translate-projects-ios.mjs" },
+  "files": ["bin", "src"],
+  "engines": { "node": ">=22.4" },
+  "scripts": { "test": "node --test" },
+  "keywords": ["ios", "xcode", "xcstrings", "string-catalog", "localization", "i18n", "translation", "swift"],
+  "homepage": "https://translateprojects.dev",
+  "license": "MIT"
+}
