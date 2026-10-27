@@ -15,6 +15,8 @@ public protocol TranslateApi: AnyObject {
     func loadSources(_ texts: [String: String], sourceLang: String, routeFile: String, version: String) async throws -> String?
     func makeTranslations(sourceLang: String, targetLang: String, routeFile: String, version: String) async throws -> String?
     func getTranslations(_ targetLang: String, routeFile: String) async throws -> [String: String]
+    /** Fingerprint of each language's translations of the file, to notice corrections made on the server. */
+    func versions(routeFile: String) async throws -> [String: String]
     /** WebSocket that reports a task's progress; nil when there is none. */
     func progressURL(_ taskId: String) -> URL?
 }
@@ -52,6 +54,10 @@ public final class Api: TranslateApi {
     // Only this file's: the same text in another file of the project (an Android strings.xml) may have another translation
     public func getTranslations(_ targetLang: String, routeFile: String) async throws -> [String: String] {
         (try await data("GET", "/v1/translations/language-project", ["target_lang": targetLang, "route_file": routeFile])?.object ?? [:]).compactMapValues(\.string)
+    }
+
+    public func versions(routeFile: String) async throws -> [String: String] {
+        (try await data("GET", "/v1/translations/versions", ["route_file": routeFile])?.object ?? [:]).compactMapValues(\.string)
     }
 
     public func progressURL(_ taskId: String) -> URL? {

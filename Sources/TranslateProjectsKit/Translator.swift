@@ -44,10 +44,15 @@ public func translate(api: TranslateApi, file: URL, cacheFile: URL, sourceLang: 
 
     var cache = (try? JSON.parse(Data(contentsOf: cacheFile)).object) ?? [:]
     let has = { (lang: String) in (catalog["strings"]?.object ?? [:]).values.contains { $0["localizations"]?[lang] != nil } }
+    // Fingerprint of the server's translations per language: it changes when someone corrects them there.
+    // An older server without the endpoint gives none and only the source version counts.
+    let server = (try? await api.versions(routeFile: routeFile)) ?? [:]
     let pending = targetLangs.filter { $0 != sourceLang }.filter { lang in
-        let upToDate = !options.force && cache[lang]?["version"]?.string == version && has(lang)
-        if upToDate { log("Translate Projects: \(lang) is up to date, skipped") }
-        return !upToDate
+        let sameSources = !options.force && cache[lang]?["version"]?.string == version && has(lang)
+        let sameServer = server[lang] == nil || cache[lang]?["server"]?.string == server[lang]
+        if sameSources && sameServer { log("Translate Projects: \(lang) is up to date, skipped") }
+        if sameSources && !sameServer { log("Translate Projects: \(lang) has corrections on the server, downloading") }
+        return !(sameSources && sameServer)
     }
 
     // The server translates the languages in parallel; they are written to the catalog one by one as they finish
@@ -61,6 +66,10 @@ public func translate(api: TranslateApi, file: URL, cacheFile: URL, sourceLang: 
             try (catalog.serialized() + "\n").write(to: file, atomically: true, encoding: .utf8)
             try (JSON.object(cache).serialized() + "\n").write(to: cacheFile, atomically: true, encoding: .utf8)
         }
+    }
+    if !pending.isEmpty, let after = try? await api.versions(routeFile: routeFile) {
+        for lang in pending where cache[lang] != nil { cache[lang]?["server"] = after[lang].map(JSON.string) }
+        try (JSON.object(cache).serialized() + "\n").write(to: cacheFile, atomically: true, encoding: .utf8)
     }
     log("Translate Projects: done, \(api.requests) HTTP requests")
 }

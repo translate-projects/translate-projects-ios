@@ -42,7 +42,8 @@ Commit the catalog and `Localizable.translate-projects.json` (the cache, next to
 
 ## Cache
 
-- Nothing changed in the source language: one request, no upload, no translation.
+- Nothing changed in the source language: two requests, no upload, no translation.
+- A translation corrected on the server (in the Translate Projects panel) is downloaded on the next run, no `--force` needed; your own edits in Xcode still win.
 - Some texts changed: they are uploaded once and only the languages that are out of date are translated again; the server reuses what it already has.
 - A language with texts the server could not translate is retried on the next run. A cut run resumes.
 

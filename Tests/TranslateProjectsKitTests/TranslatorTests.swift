@@ -23,6 +23,8 @@ final class FakeApi: TranslateApi {
         return Dictionary(uniqueKeysWithValues: dict.map { (shortHash($0.key), $0.value) })
     }
     func progressURL(_ taskId: String) -> URL? { nil }
+    var server: [String: String] = [:]
+    func versions(routeFile: String) async throws -> [String: String] { server }
 }
 
 let en = ["Hola %@": "Hello %@", "Configuración": "Settings", "%lld viajes": "%lld trips", "%lld viaje": "%lld trip", "Cerrar": "Close"]
@@ -107,6 +109,27 @@ final class TranslatorTests: XCTestCase {
 
         try await run(changed, ["en"], force: true)
         XCTAssertEqual(try catalog()["strings"]?["Cerrar"]?["localizations"]?["en"], unit("Close"))
+    }
+
+    func testCorrectionOnTheServerIsDownloadedWithoutForce() async throws {
+        let first = FakeApi(en)
+        first.server = ["en": "v1"]
+        try await run(first, ["en"])
+
+        let same = FakeApi(en)
+        same.changed = false
+        same.server = ["en": "v1"]
+        try await run(same, ["en"])
+        XCTAssertEqual(same.tasks, 0)
+        XCTAssertEqual(try catalog()["strings"]?["Cerrar"]?["localizations"]?["en"], unit("Close"))
+
+        let corrected = FakeApi(en.merging(["Cerrar": "Dismiss"]) { $1 })
+        corrected.changed = false
+        corrected.server = ["en": "v2"]
+        try await run(corrected, ["en"])
+        XCTAssertEqual(corrected.tasks, 0)
+        XCTAssertEqual(try catalog()["strings"]?["Cerrar"]?["localizations"]?["en"], unit("Dismiss"))
+        XCTAssertEqual(try JSON.parse(Data(contentsOf: cache))["en"]?["server"], .string("v2"))
     }
 
     func testLostPlaceholderIsNotWritten() async throws {
