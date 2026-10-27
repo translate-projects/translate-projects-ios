@@ -34,10 +34,16 @@ public func translate(api: TranslateApi, file: URL, cacheFile: URL, sourceLang: 
     let upload = try await !uploaded()
     if upload {
         log("Translate Projects: uploading \(texts.count) texts...")
-        guard try await api.loadSources(texts, sourceLang: sourceLang, routeFile: routeFile, version: version) != nil else {
+        guard let task = try await api.loadSources(texts, sourceLang: sourceLang, routeFile: routeFile, version: version) else {
             throw ApiError("Translate Projects: sources upload failed")
         }
-        try await wait(idle: 60, every: options.pollInterval) { try await uploaded() ? 1 : 0 }
+        // validate-changes only settles after the translation tasks when the file already had older texts: the socket says when the upload ended
+        let finished = Finished(api.progressURL(task))
+        defer { finished.close() }
+        try await wait(idle: 60, every: options.pollInterval) {
+            if finished.value { return 1 }
+            return try await uploaded() ? 1 : 0
+        }
     } else {
         log("Translate Projects: sources unchanged, upload skipped")
     }
