@@ -18,8 +18,9 @@ final class FakeApi: TranslateApi {
         tasks += 1
         return "t2"
     }
-    func getTranslations(_ targetLang: String) async throws -> [String: String] {
-        Dictionary(uniqueKeysWithValues: dict.map { (shortHash($0.key), $0.value) })
+    func getTranslations(_ targetLang: String, routeFile: String) async throws -> [String: String] {
+        guard routeFile == "Localizable.xcstrings" else { return [:] }
+        return Dictionary(uniqueKeysWithValues: dict.map { (shortHash($0.key), $0.value) })
     }
     func progressURL(_ taskId: String) -> URL? { nil }
 }

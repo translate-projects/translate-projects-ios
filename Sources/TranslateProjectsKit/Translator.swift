@@ -71,7 +71,7 @@ private func fetch(api: TranslateApi, texts: [String: String], version: String, 
     // After an upload the translation task must run anyway: with cache_hash it marks every text of the file with
     // this version, otherwise validate-changes keeps reporting the file as changed
     if !upload {
-        let byHash = try await api.getTranslations(lang)
+        let byHash = try await api.getTranslations(lang, routeFile: routeFile)
         if done(byHash) == 1 {
             log("Translate Projects: \(lang) already translated on the server, downloading")
             return byHash
@@ -85,7 +85,7 @@ private func fetch(api: TranslateApi, texts: [String: String], version: String, 
         var lastStep = -1
         try await wait(idle: idle, every: every) {
             if finished.value { return 1 }
-            let progress = done(try await api.getTranslations(lang))
+            let progress = done(try await api.getTranslations(lang, routeFile: routeFile))
             let step = Int(progress * 10)
             if step > lastStep {
                 lastStep = step
@@ -94,7 +94,7 @@ private func fetch(api: TranslateApi, texts: [String: String], version: String, 
             return progress
         }
     }
-    return try await api.getTranslations(lang)
+    return try await api.getTranslations(lang, routeFile: routeFile)
 }
 
 /**
