@@ -3,7 +3,11 @@ import Foundation
 // Texts the backend never stores (helpers/ignore_list.py), so they never come back translated
 let ignored: Set<String> = ["", ".", ",", ":", ";", "..."]
 
-func isIgnored(_ text: String) -> Bool { ignored.contains(text.trimmingCharacters(in: .whitespacesAndNewlines)) }
+/** Nothing to translate: punctuation, prices ("$9.300"), bare placeholders ("%@") or empty. */
+func isIgnored(_ text: String) -> Bool {
+    ignored.contains(text.trimmingCharacters(in: .whitespacesAndNewlines)) ||
+        placeholder.stringByReplacingMatches(in: text, range: NSRange(text.startIndex..., in: text), withTemplate: "").rangeOfCharacter(from: .letters) == nil
+}
 
 // %@ %lld %1$@ %.2f %% and Xcode's substitution tokens %#@name@
 private let placeholder = try! NSRegularExpression(pattern: #"%(\d+\$)?#@[^@]+@|%(\d+\$)?[-#+0]*(\d+|\*)?(\.\d+)?(hh|h|ll|l|q|z|t|j|L)?[@a-zA-Z%]"#)
@@ -35,7 +39,9 @@ func sources(_ catalog: JSON, sourceLang: String) -> [String: JSON] {
     var out: [String: JSON] = [:]
     for (key, entry) in catalog["strings"]?.object ?? [:] {
         if entry["shouldTranslate"] == .bool(false) || entry["extractionState"] == .string("stale") { continue }
-        out[key] = entry["localizations"]?[sourceLang] ?? stringUnit(key)
+        let source = entry["localizations"]?[sourceLang] ?? stringUnit(key)
+        if units(source).allSatisfy(isIgnored) { continue } // nothing to translate: no localization is written
+        out[key] = source
     }
     return out
 }

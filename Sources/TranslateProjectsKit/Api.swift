@@ -15,6 +15,8 @@ public protocol TranslateApi: AnyObject {
     func loadSources(_ texts: [String: String], sourceLang: String, routeFile: String, version: String) async throws -> String?
     func makeTranslations(sourceLang: String, targetLang: String, routeFile: String, version: String) async throws -> String?
     func getTranslations(_ targetLang: String) async throws -> [String: String]
+    /** WebSocket that reports a task's progress; nil when there is none. */
+    func progressURL(_ taskId: String) -> URL?
 }
 
 public final class Api: TranslateApi {
@@ -49,6 +51,10 @@ public final class Api: TranslateApi {
 
     public func getTranslations(_ targetLang: String) async throws -> [String: String] {
         (try await data("GET", "/v1/translations/language-project", ["target_lang": targetLang])?.object ?? [:]).compactMapValues(\.string)
+    }
+
+    public func progressURL(_ taskId: String) -> URL? {
+        URL(string: baseUrl.replacingOccurrences(of: "http", with: "ws", options: .anchored) + "/ws/progress/\(taskId)/")
     }
 
     /** Calls the API retrying network errors, 429 and 5xx with backoff; any other error throws. */
@@ -96,4 +102,46 @@ public final class Api: TranslateApi {
 
 func log(_ message: String) {
     print(message)
+}
+
+/**
+ * Set once the task's progress WebSocket reports 100 %, also when some texts could not be translated.
+ * On Linux URLSession has no WebSockets (libcurl), so there only polling ends the wait.
+ */
+final class Finished: @unchecked Sendable {
+    private let lock = NSLock()
+    private var done = false
+    private var task: URLSessionWebSocketTask?
+    var value: Bool { lock.lock(); defer { lock.unlock() }; return done }
+
+    init(_ url: URL?) {
+        guard let url else { return }
+        task = URLSession.shared.webSocketTask(with: url)
+        task?.resume()
+        receive()
+    }
+
+    private func receive() {
+        task?.receive { [weak self] result in
+            guard let self, case .success(let message) = result else { return } // closed or failed: polling still covers it
+            var text = ""
+            switch message {
+            case .string(let s): text = s
+            case .data(let d): text = String(decoding: d, as: UTF8.self)
+            @unknown default: break
+            }
+            let progress: Double? = switch (try? JSON.parse(Data(text.utf8)))?["progress"] {
+            case .number(let n)?: n
+            case .string(let s)?: Double(s)
+            default: nil
+            }
+            if let progress, progress >= 100 {
+                self.lock.lock(); self.done = true; self.lock.unlock()
+            } else {
+                self.receive()
+            }
+        }
+    }
+
+    func close() { task?.cancel(with: .normalClosure, reason: nil) }
 }

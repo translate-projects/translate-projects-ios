@@ -21,6 +21,7 @@ final class FakeApi: TranslateApi {
     func getTranslations(_ targetLang: String) async throws -> [String: String] {
         Dictionary(uniqueKeysWithValues: dict.map { (shortHash($0.key), $0.value) })
     }
+    func progressURL(_ taskId: String) -> URL? { nil }
 }
 
 let en = ["Hola %@": "Hello %@", "Configuración": "Settings", "%lld viajes": "%lld trips", "%lld viaje": "%lld trip", "Cerrar": "Close"]
@@ -43,7 +44,10 @@ final class TranslatorTests: XCTestCase {
             "one": {"stringUnit": {"state": "translated", "value": "%lld viaje"}},
             "other": {"stringUnit": {"state": "translated", "value": "%lld viajes"}}}}}}},
           "Ruteo": {"shouldTranslate": false},
-          "Cerrar": {}
+          "Cerrar": {},
+          "$9.300": {},
+          "": {},
+          "%@": {}
         }}
         """.write(to: file, atomically: true, encoding: .utf8)
     }
@@ -75,6 +79,7 @@ final class TranslatorTests: XCTestCase {
                        .object(["one": unit("%lld trip"), "other": unit("%lld trips")]))
         XCTAssertEqual(c["strings"]?["trips"]?["localizations"]?["pt-BR"]?["variations"]?["plural"]?.object?.keys.sorted(), ["many", "one", "other"])
         XCTAssertNil(c["strings"]?["Ruteo"]?["localizations"])
+        for key in ["$9.300", "", "%@"] { XCTAssertEqual(c["strings"]?[key], .object([:]), key) } // nothing to translate
         XCTAssertEqual(c["strings"]?["Ruteo"]?["shouldTranslate"], .bool(false))
         XCTAssertEqual(try JSON.parse(Data(contentsOf: cache))["en"]?["version"]?.string?.count, 15)
     }

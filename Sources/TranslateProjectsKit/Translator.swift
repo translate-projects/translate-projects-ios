@@ -78,9 +78,13 @@ private func fetch(api: TranslateApi, texts: [String: String], version: String, 
         }
     }
     log("Translate Projects: \(lang) translating \(texts.count) texts (the server reuses what it already has)...")
-    if try await api.makeTranslations(sourceLang: sourceLang, targetLang: lang, routeFile: routeFile, version: version) != nil {
+    if let task = try await api.makeTranslations(sourceLang: sourceLang, targetLang: lang, routeFile: routeFile, version: version) {
+        // The socket says when the server finished, also with texts it could not translate; polling alone would wait `idle` for them
+        let finished = Finished(api.progressURL(task))
+        defer { finished.close() }
         var lastStep = -1
         try await wait(idle: idle, every: every) {
+            if finished.value { return 1 }
             let progress = done(try await api.getTranslations(lang))
             let step = Int(progress * 10)
             if step > lastStep {
@@ -95,8 +99,8 @@ private func fetch(api: TranslateApi, texts: [String: String], version: String, 
 
 /**
  * Polls `progress` (0...1) until it reaches 1; gives up after `idle` seconds without it moving.
- * shortcut: polls the API instead of the progress WebSocket (URLSessionWebSocketTask is unreliable on Linux);
- * fine up to a few thousand texts, switch to the socket if the payload of each poll grows too big.
+ * shortcut: the progress itself comes from polling the translations; fine up to a few thousand texts,
+ * read the socket's percentages instead if the payload of each poll grows too big.
  */
 func wait(idle: TimeInterval, every: TimeInterval, _ progress: () async throws -> Double) async throws {
     var last = -1.0, since = Date()
