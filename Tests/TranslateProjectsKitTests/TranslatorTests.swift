@@ -143,8 +143,7 @@ final class TranslatorTests: XCTestCase {
         XCTAssertNil(check("%lld", source: "%d"))
         XCTAssertEqual(check("50 % de descuento", source: "50 % off"), "50 % de descuento")
         XCTAssertEqual(check("Hola\nmundo", source: "Hello world"), "Hola mundo")
-        XCTAssertEqual(check("by SMS", source: " por SMS"), " by SMS")
-        XCTAssertEqual(check(" Total: ", source: "Total:  "), "Total:  ")
+        XCTAssertEqual(check(" by SMS ", source: " por SMS"), "by SMS")
         XCTAssertEqual(JSON.object(["b": .object([:]), "a": .string("x\n"), "n": .number(2)]).serialized(),
                        "{\n  \"a\" : \"x\\n\",\n  \"b\" : {\n\n  },\n  \"n\" : 2\n}")
     }

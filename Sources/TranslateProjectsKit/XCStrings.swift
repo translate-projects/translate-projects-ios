@@ -20,9 +20,8 @@ func placeholders(_ s: String) -> [String] {
 func check(_ translation: String, source: String) -> String? {
     // The AI sometimes adds line breaks; a value without them must not get one
     var value = source.contains("\n") ? translation : translation.replacingOccurrences(of: "\r\n", with: " ").replacingOccurrences(of: "\n", with: " ")
-    // The AI trims the source's edge spaces (" by SMS" → "by SMS"), which glue concatenated texts together
-    let edge = { (s: Substring) in String(s.prefix { $0.isWhitespace }) }
-    value = edge(Substring(source)) + value.trimmingCharacters(in: .whitespaces) + String(edge(Substring(source.reversed())).reversed())
+    // Edge spaces are trimmed: a text must not depend on them (use %@ instead of concatenating)
+    value = value.trimmingCharacters(in: .whitespaces)
     return placeholders(value) == placeholders(source) ? value : nil
 }
 

@@ -38,6 +38,7 @@ Commit the catalog and `Localizable.translate-projects.json` (the cache, next to
 - `%@`, `%lld`, `%1$@`, `%.2f`, `%#@name@`: a translation that loses or changes one is not written (the app falls back to the source text).
 - Plural and device variations and substitutions; each language gets its own plural categories (`pt-BR`: one, many, other).
 - Strings marked "Don't translate" and stale strings are skipped. Comments are kept.
+- Leading and trailing spaces are trimmed from translations. Don't build sentences by concatenating strings (`"Sent" + " by SMS"`): use one string with a placeholder (`"Sent %@"`), since word order changes between languages.
 - **Manual edits**: a translation you change in Xcode is kept on the next runs until its source text changes. Translations you already had before the first run are kept too. `--force` overwrites them.
 
 ## Cache
